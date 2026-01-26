@@ -30,7 +30,13 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                onClick={() => setActiveTab('profile')}
                className={`flex items-center gap-3 w-full p-2 rounded-full hover:bg-white/10 transition-colors group ${activeTab === 'profile' ? 'bg-white/10' : ''}`}>
                {photoUrl ? (
-                  <img src={photoUrl} alt="User" className="w-10 h-10 rounded-full border-2 border-black group-hover:border-white/20 transition-all object-cover" />
+                  <img
+                     src={photoUrl}
+                     alt="User"
+                     loading="lazy"
+                     referrerPolicy="no-referrer"
+                     className="w-10 h-10 rounded-full border-2 border-black group-hover:border-white/20 transition-all object-cover"
+                  />
                ) : (
                   <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 border-2 border-black group-hover:border-white/20 transition-all flex items-center justify-center font-bold text-sm">
                      {displayName[0]?.toUpperCase()}

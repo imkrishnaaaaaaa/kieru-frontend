@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, Clock, CheckCircle, Flame, AlertCircle, RefreshCcw, Filter, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Eye, Clock, CheckCircle, Flame, AlertCircle, RefreshCcw, Filter, ChevronDown, ChevronUp, Loader2, RotateCcwKey, X } from 'lucide-react';
 import { apiRequest } from '../../utils/apiClient';
 import { useAuth } from '../../context/AuthContext';
 
@@ -200,6 +200,13 @@ function SecretRow({ data, expanded, onToggle }) {
    const [logsLoading, setLogsLoading] = useState(false);
    const [logsError, setLogsError] = useState('');
 
+   // Password update states
+   const [showPasswordModal, setShowPasswordModal] = useState(false);
+   const [newPassword, setNewPassword] = useState('');
+   const [passwordUpdating, setPasswordUpdating] = useState(false);
+   const [passwordError, setPasswordError] = useState('');
+   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
    // Format Date
    const dateStr = new Date(data.createdAt).toLocaleDateString(undefined, {
       month: 'short',
@@ -250,6 +257,45 @@ function SecretRow({ data, expanded, onToggle }) {
       });
    };
 
+   const openPasswordModal = e => {
+      e.stopPropagation();
+      setShowPasswordModal(true);
+      setPasswordError('');
+      setPasswordSuccess(false);
+      setNewPassword('');
+   };
+
+   const handleUpdatePassword = async () => {
+      if (!newPassword.trim()) {
+         setPasswordError('Password cannot be empty');
+         return;
+      }
+
+      setPasswordUpdating(true);
+      setPasswordError('');
+      setPasswordSuccess(false);
+
+      try {
+         await apiRequest({
+            url: `/api/secrets/update-password/${data.secretId}`,
+            method: 'POST',
+            params: { password: newPassword },
+            requestId: `UPDATE_PASSWORD_${data.secretId}`
+         });
+
+         setPasswordSuccess(true);
+         setTimeout(() => {
+            setShowPasswordModal(false);
+            setNewPassword('');
+         }, 1500);
+      } catch (err) {
+         console.error('Failed to update password:', err);
+         setPasswordError(err.message || 'Failed to update password');
+      } finally {
+         setPasswordUpdating(false);
+      }
+   };
+
    return (
       <div
          className={`group rounded-[1.5rem] border transition-all cursor-pointer overflow-hidden ${
@@ -282,6 +328,16 @@ function SecretRow({ data, expanded, onToggle }) {
                      {data.currentViews} / {data.maxViews} Used
                   </span>
                </div>
+
+               {/* Password Update Icon - Only for password-protected secrets */}
+               {data.isPasswordProtected && (
+                  <button
+                     onClick={openPasswordModal}
+                     className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 hover:text-slate-900 transition-colors"
+                     title="Update Password">
+                     <RotateCcwKey size={18} />
+                  </button>
+               )}
 
                <div className="text-slate-300 ml-2">{expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</div>
             </div>
@@ -340,7 +396,7 @@ function SecretRow({ data, expanded, onToggle }) {
                   {!logsLoading && logs.length > 0 && (
                      <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto">
                         {logs.map((log, index) => (
-                           <div key={index} className={`p-4 rounded-xl border ${log.wasSuccessful ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50/50 border-red-100'}`}>
+                           <div key={index} className="p-4 rounded-xl border border-slate-100 bg-slate-50/30">
                               <div className="flex items-start justify-between gap-3">
                                  {/* Left: Time & IP */}
                                  <div className="flex-1 min-w-0">
@@ -350,7 +406,7 @@ function SecretRow({ data, expanded, onToggle }) {
                                     </div>
                                     <div className="text-slate-900 font-mono text-sm font-bold truncate">{log.ipAddress || '-'}</div>
                                     {!log.wasSuccessful && log.failureReason && (
-                                       <p className="mt-2 text-red-600 text-xs font-medium bg-red-100 px-2 py-1 rounded-lg inline-block">{log.failureReason}</p>
+                                       <p className="mt-2 text-red-600 text-xs font-medium bg-red-100/50 px-2 py-1 rounded-lg inline-block">{log.failureReason}</p>
                                     )}
                                  </div>
 
@@ -371,6 +427,64 @@ function SecretRow({ data, expanded, onToggle }) {
                         ))}
                      </div>
                   )}
+               </div>
+            </div>
+         )}
+
+         {/* Password Update Modal */}
+         {showPasswordModal && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowPasswordModal(false)}>
+               <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-4">
+                     <h3 className="text-xl font-bold text-slate-900">Update Secret Password</h3>
+                     <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <X size={20} />
+                     </button>
+                  </div>
+
+                  <input
+                     type="password"
+                     placeholder="Enter new password"
+                     value={newPassword}
+                     onChange={e => setNewPassword(e.target.value)}
+                     onKeyDown={e => e.key === 'Enter' && handleUpdatePassword()}
+                     className="w-full px-4 py-3 border border-slate-200 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-transparent"
+                     autoFocus
+                  />
+
+                  {passwordError && (
+                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                        <p className="text-red-600 text-sm font-medium">{passwordError}</p>
+                     </div>
+                  )}
+
+                  {passwordSuccess && (
+                     <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+                        <p className="text-green-600 text-sm font-medium">Password updated successfully!</p>
+                     </div>
+                  )}
+
+                  <div className="flex justify-end gap-3">
+                     <button
+                        onClick={() => setShowPasswordModal(false)}
+                        className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-semibold"
+                        disabled={passwordUpdating}>
+                        Cancel
+                     </button>
+                     <button
+                        onClick={handleUpdatePassword}
+                        className="px-5 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2"
+                        disabled={passwordUpdating}>
+                        {passwordUpdating ? (
+                           <>
+                              <Loader2 className="animate-spin" size={16} />
+                              <span>Updating...</span>
+                           </>
+                        ) : (
+                           'Update Password'
+                        )}
+                     </button>
+                  </div>
                </div>
             </div>
          )}

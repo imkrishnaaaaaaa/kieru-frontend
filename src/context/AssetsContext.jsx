@@ -18,12 +18,21 @@ const DEFAULT_FILE_SIZE_LIMITS = {
    UNDEFINED: 1 * 1024 * 1024
 };
 
+const DEFAULT_DAILY_SECRET_LIMITS = {
+   ANONYMOUS: 2,
+   EXPLORER: 3,
+   CHALLENGER: 5,
+   DOMINATOR: 10,
+   UNDEFINED: 2
+};
+
 const AssetsContext = createContext(null);
 
 export function AssetsProvider({ children }) {
    const [subscriptionPlans, setSubscriptionPlans] = useState([]);
    const [charLimits, setCharLimits] = useState(DEFAULT_CHAR_LIMITS);
    const [fileSizeLimits, setFileSizeLimits] = useState(DEFAULT_FILE_SIZE_LIMITS);
+   const [dailySecretLimits, setDailySecretLimits] = useState(DEFAULT_DAILY_SECRET_LIMITS);
    const [loading, setLoading] = useState(true);
    const [error, setError] = useState(null);
 
@@ -36,38 +45,62 @@ export function AssetsProvider({ children }) {
       setError(null);
 
       try {
-         // Fetch all three in parallel
-         const [subsResponse, charResponse, fileResponse] = await Promise.all([
+         // Fetch all four in parallel
+         const [subsResponse, charResponse, fileResponse, dailyResponse] = await Promise.all([
             apiRequest({
                url: '/api/assets/subscriptions',
                method: 'GET',
                requestId: 'FETCH_SUBSCRIPTIONS'
             }),
             apiRequest({
-               url: '/api/assets/charLimits',
+               url: '/api/assets/subscriptions/char-limits',
                method: 'GET',
                requestId: 'FETCH_CHAR_LIMITS'
             }),
             apiRequest({
-               url: '/api/assets/fileSizeLimits',
+               url: '/api/assets/subscriptions/file-size-limits',
                method: 'GET',
                requestId: 'FETCH_FILE_SIZE_LIMITS'
+            }),
+            apiRequest({
+               url: '/api/assets/subscriptions/daily-secret-limits',
+               method: 'GET',
+               requestId: 'FETCH_DAILY_SECRET_LIMITS'
             })
          ]);
 
+         // Helper to normalize keys to uppercase
+         const normalizeKeys = obj => {
+            if (!obj || typeof obj !== 'object') return {};
+            return Object.keys(obj).reduce((acc, key) => {
+               acc[key.toUpperCase()] = obj[key];
+               return acc;
+            }, {});
+         };
+
          // Set subscription plans
-         if (subsResponse?.subscriptionPlans) {
-            setSubscriptionPlans(subsResponse.subscriptionPlans);
+         if (subsResponse) {
+            // If it's a map/object, extract values or keys as needed.
+            // Based on user info: {"ANONYMOUS": "anonymous", ...}
+            setSubscriptionPlans(Object.values(subsResponse));
          }
 
          // Set character limits
-         if (charResponse?.charLimits) {
-            setCharLimits(prev => ({ ...prev, ...charResponse.charLimits }));
+         if (charResponse) {
+            const normalized = normalizeKeys(charResponse.charLimits || charResponse);
+            setCharLimits(prev => ({ ...prev, ...normalized }));
          }
 
          // Set file size limits
-         if (fileResponse?.fileLimit) {
-            setFileSizeLimits(prev => ({ ...prev, ...fileResponse.fileLimit }));
+         if (fileResponse) {
+            const normalized = normalizeKeys(fileResponse.fileLimit || fileResponse);
+            setFileSizeLimits(prev => ({ ...prev, ...normalized }));
+         }
+
+         // Set daily secret limits
+         if (dailyResponse) {
+            const normalized = normalizeKeys(dailyResponse.dailySecretLimit || dailyResponse);
+            setDailySecretLimits(prev => ({ ...prev, ...normalized }));
          }
       } catch (err) {
          console.error('Failed to fetch assets:', err);
@@ -82,6 +115,7 @@ export function AssetsProvider({ children }) {
       subscriptionPlans,
       charLimits,
       fileSizeLimits,
+      dailySecretLimits,
       loading,
       error,
       refetch: fetchAssets
@@ -100,10 +134,21 @@ export function useAssets() {
 
 // Helper function to get char limit for a plan
 export function getCharLimit(charLimits, plan) {
-   return charLimits[plan] || charLimits.UNDEFINED || 500;
+   if (!plan) return charLimits.UNDEFINED || 500;
+   const upperPlan = plan.toUpperCase();
+   return charLimits[upperPlan] || charLimits.UNDEFINED || 500;
 }
 
 // Helper function to get file size limit for a plan
 export function getFileSizeLimit(fileSizeLimits, plan) {
-   return fileSizeLimits[plan] || fileSizeLimits.UNDEFINED || 1 * 1024 * 1024;
+   if (!plan) return fileSizeLimits.UNDEFINED || 1 * 1024 * 1024;
+   const upperPlan = plan.toUpperCase();
+   return fileSizeLimits[upperPlan] || fileSizeLimits.UNDEFINED || 1 * 1024 * 1024;
+}
+
+// Helper function to get daily secret limit for a plan
+export function getDailySecretLimit(dailySecretLimits, plan) {
+   if (!plan) return dailySecretLimits.UNDEFINED || 5;
+   const upperPlan = plan.toUpperCase();
+   return dailySecretLimits[upperPlan] || dailySecretLimits.UNDEFINED || 5;
 }

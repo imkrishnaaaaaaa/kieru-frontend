@@ -20,7 +20,7 @@ export default function MobileNav({ activeTab, setActiveTab }) {
                onClick={() => setActiveTab('profile')}
                className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden hover:bg-white/20 transition-all">
                {photoUrl ? (
-                  <img src={photoUrl} alt="User" className="w-full h-full object-cover" />
+                  <img src={photoUrl} alt="User" loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                ) : (
                   <div className="w-full h-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center font-bold text-white text-xs">{displayName[0]?.toUpperCase()}</div>
                )}

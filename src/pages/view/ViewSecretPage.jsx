@@ -108,18 +108,13 @@ export default function ViewSecretPage() {
       setStep('FETCHING');
 
       try {
-         // The user requirement specified: POST /api/secrets/{id}/access?password=...
-         // Our apiClient sends 'params' as JSON body for POST requests.
-         // So we manually construct the URL with query params for this specific case.
-         let requestUrl = `/api/secrets/${id}/access`;
-         if (pwd) {
-            requestUrl += `?password=${encodeURIComponent(pwd)}`;
-         }
+         // POST /api/secrets/{id}/access with password in body
+         const requestUrl = `/api/secrets/${id}/access`;
 
          const response = await apiRequest({
             url: requestUrl,
             method: 'POST',
-            params: {} // Empty body
+            params: pwd ? { password: pwd } : {}
          });
 
          if (response.isSuccess && response.content) {

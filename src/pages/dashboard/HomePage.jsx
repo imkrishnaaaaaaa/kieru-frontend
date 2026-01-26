@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Clock } from 'lucide-react';
+import { Plus, Clock, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function HomePage({ setActiveTab }) {
@@ -11,9 +11,20 @@ export default function HomePage({ setActiveTab }) {
    return (
       <div className="p-8 md:p-12 animate-in fade-in zoom-in-95 duration-500">
          {/* Header */}
-         <div className="mb-12">
-            <h1 className="text-5xl font-black mb-4 tracking-tighter text-black">Hello, {displayName}.</h1>
+         <div className="mb-8">
+            <h1 className="text-5xl font-black mb-4 tracking-tighter text-black">Hello, {displayName}</h1>
             <p className="text-slate-400 text-xl font-medium">Your vault is secure.</p>
+         </div>
+
+         {/* Intro Banner */}
+         <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-slate-50 to-slate-100/50 border border-slate-200/60 flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center flex-shrink-0">
+               <ShieldCheck size={20} className="text-emerald-600" />
+            </div>
+            <p className="text-slate-600 text-base leading-relaxed">
+               Share sensitive information securely with <span className="font-semibold text-slate-700">one-time secret links</span> that self-destruct after viewing. Perfect for passwords, API keys,
+               and confidential notes.
+            </p>
          </div>
 
          {/* Cards - Pure White Design */}
