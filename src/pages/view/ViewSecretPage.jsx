@@ -127,24 +127,63 @@ export default function ViewSecretPage() {
             });
             setStep('DECRYPTING');
          } else {
-            // Access denied (wrong password?)
-            if (pwd) {
+            // Handle specific error cases from backend
+            const errorMessage = response.message || 'Access Denied';
+
+            if (response.isDeleted) {
+               setStep('BURNED');
+               setWasManualBurn(true);
+            } else if (response.isExpired) {
+               setStep('ERROR');
+               setError('This secret has expired and is no longer accessible.');
+            } else if (response.isActive === false) {
+               setStep('BURNED');
+               setWasManualBurn(false);
+            } else if (response.isValidationPassed === false) {
+               // Wrong password
                setStep('PASSWORD_REQUIRED');
-               setError('Incorrect Password');
+               setError('Incorrect password. Please try again.');
+            } else if (pwd) {
+               // Password was provided but access denied
+               setStep('PASSWORD_REQUIRED');
+               setError(errorMessage);
             } else {
                setStep('ERROR');
-               setError('Access Denied');
+               setError(errorMessage);
             }
          }
       } catch (err) {
          console.error('Access Error:', err);
-         if (err.message.includes('403') || err.message.includes('Password')) {
-            setStep('PASSWORD_REQUIRED');
-            setError('Incorrect Password');
-         } else {
-            setStep('ERROR');
-            setError(err.message || 'Failed to access secret content.');
+
+         // Try to parse error response if available
+         let errorMessage = 'Failed to access secret content.';
+
+         try {
+            // Check if error has response data
+            if (err.response?.data?.message) {
+               errorMessage = err.response.data.message;
+            } else if (err.message) {
+               // Check for specific error patterns
+               if (err.message.includes('403') || err.message.toLowerCase().includes('password')) {
+                  setStep('PASSWORD_REQUIRED');
+                  setError('Incorrect password. Please try again.');
+                  return;
+               } else if (err.message.includes('404')) {
+                  errorMessage = 'Secret not found. It may have been deleted or never existed.';
+               } else if (err.message.includes('410')) {
+                  setStep('BURNED');
+                  setWasManualBurn(false);
+                  return;
+               } else {
+                  errorMessage = err.message;
+               }
+            }
+         } catch (parseError) {
+            console.error('Error parsing response:', parseError);
          }
+
+         setStep('ERROR');
+         setError(errorMessage);
       }
    };
 

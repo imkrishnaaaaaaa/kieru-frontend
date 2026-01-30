@@ -12,7 +12,7 @@ export default function MySecretsPage() {
 
    // Filters & Pagination
    const [filters, setFilters] = useState({
-      start: 0,
+      page: 0,
       limit: 10,
       onlyActive: false
    });
@@ -24,7 +24,7 @@ export default function MySecretsPage() {
          // If loading more, we append. If not (initial or filter change), we reset.
          // But we must handle the state carefully to not duplicate or lose data.
 
-         const currentStart = isLoadMore ? filters.start : 0;
+         const currentPage = isLoadMore ? filters.page : 0;
          setLoading(true);
          setError('');
 
@@ -35,7 +35,7 @@ export default function MySecretsPage() {
                url: '/api/dashboard/secrets',
                method: 'GET',
                params: {
-                  start: currentStart,
+                  page: currentPage,
                   limit: filters.limit,
                   onlyActive: filters.onlyActive
                },
@@ -67,43 +67,43 @@ export default function MySecretsPage() {
             setLoading(false);
          }
       },
-      [user, filters.limit, filters.onlyActive, filters.start]
+      [user, filters.limit, filters.onlyActive, filters.page]
    );
 
    // Initial Fetch & Filter Change Effect
-   // We effectively reset start to 0 when filters change (except 'start' itself if handled manually, but here we control flow)
+   // We effectively reset page to 1 when filters change (except 'page' itself if handled manually, but here we control flow)
    // NOTE: To avoid infinite loops or conflicts, we trigger fetch when specific deps change.
-   // But `filters.start` changes on load more.
+   // But `filters.page` changes on load more.
 
    // Strategy:
-   // 1. When limit/onlyActive changes -> Reset start to 0, clear secrets, trigger fetch.
-   // 2. When 'Load More' clicked -> Increase start, trigger fetch (append).
+   // 1. When limit/onlyActive changes -> Reset page to 1, clear secrets, trigger fetch.
+   // 2. When 'Load More' clicked -> Increase page, trigger fetch (append).
 
    useEffect(() => {
-      // Reset logic is handled by setting start to 0 in input handlers
+      // Reset logic is handled by setting page to 1 in input handlers
       // Here we just fetch based on current state.
       // BUT if we just use one effect, we need to know if it's a reset or append.
-      // Let's rely on `filters.start === 0` to assume reset, > 0 to assume append.
+      // Let's rely on `filters.page === 1` to assume reset, > 1 to assume append.
       // Actually, easier to just trigger fetch manually from handlers or a dedicated effect.
 
-      // Let's use a dedicated effect for INITIAL load and Filter changes (resetting start).
-      // If we change filters, we should setStart(0) first.
+      // Let's use a dedicated effect for INITIAL load and Filter changes (resetting page).
+      // If we change filters, we should setPage(1) first.
 
-      fetchSecrets(filters.start > 0);
+      fetchSecrets(filters.page > 0);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [filters.start, filters.limit, filters.onlyActive]); // Dependencies trigger fetch
+   }, [filters.page, filters.limit, filters.onlyActive]); // Dependencies trigger fetch
 
    // --- Handlers ---
 
    const handleFilterChange = (key, value) => {
       // When changing filter, reset pagination
-      setFilters(prev => ({ ...prev, [key]: value, start: 0 }));
+      setFilters(prev => ({ ...prev, [key]: value, page: 0 }));
       setSecrets([]); // Clear current view
       setHasMore(true);
    };
 
    const handleLoadMore = () => {
-      setFilters(prev => ({ ...prev, start: prev.start + prev.limit }));
+      setFilters(prev => ({ ...prev, page: prev.page + 1 }));
    };
 
    const toggleExpand = id => {
