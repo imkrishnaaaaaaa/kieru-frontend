@@ -40,8 +40,7 @@ export default function MySecretsPage() {
                   onlyActive: filters.onlyActive
                },
                headers: token ? { Authorization: `Bearer ${token}` } : {},
-               requestId: 'FETCH_SECRETS',
-               silentOnDuplicate: true
+               requestId: 'FETCH_SECRETS'
             });
 
             if (Array.isArray(response)) {

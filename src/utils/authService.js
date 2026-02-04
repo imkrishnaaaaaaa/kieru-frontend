@@ -16,8 +16,7 @@ export const AuthService = {
       return await apiRequest({
          url: '/api/auth/logout',
          method: 'POST',
-         requestId: 'BACKEND_LOGOUT',
-         auth: true
+         requestId: 'BACKEND_LOGOUT'
       });
    }
 };

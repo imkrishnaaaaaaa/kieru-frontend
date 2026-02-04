@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
-import { sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, signInAnonymously, signInWithPopup, GoogleAuthProvider, GithubAuthProvider } from 'firebase/auth';
-import { User, Lock, Mail, Chrome, UserCircle, ArrowRight, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, signInAnonymously, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { Mail, Chrome, UserCircle, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 
 import { auth } from '../../utils/firebase';
-import { AuthService } from '../../utils/authService';
 import { APP_LOGO_IMAGE } from '../../config/navigationConfig';
-import { toast } from '../../utils/toast';
 
 const Button = ({ children, onClick, variant = 'primary', className = '', type = 'button', icon: Icon, loading = false }) => {
    const baseStyle =
@@ -42,38 +40,18 @@ const Input = ({ type, placeholder, value, onChange, icon: Icon, required, right
    </div>
 );
 
-// Full-screen sync overlay component
-const SyncOverlay = () => (
-   <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm">
-      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-         <div className="relative">
-            <Loader2 className="w-12 h-12 text-blue-400 animate-spin" />
-            <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-xl" />
-         </div>
-         <div className="text-center">
-            <p className="text-white font-bold text-lg">Syncing your account...</p>
-            <p className="text-white/60 text-sm mt-1">Please wait while we set things up</p>
-         </div>
-      </div>
-   </div>
-);
-
 export default function LoginPage() {
    // Initialize with the background image from public folder (Vite serves public folder at root)
-   const [bgImage, setBgImage] = useState('/login_bg.png');
+   const [bgImage, setBgImage] = useState('/login_bg.webp');
 
    // Form Data
    const [email, setEmail] = useState('');
 
    // UI State
    const [loading, setLoading] = useState(false);
-   const [syncing, setSyncing] = useState(false); // Separate state for backend sync
    const [error, setError] = useState('');
    const [successMsg, setSuccessMsg] = useState('');
    const [infoMsg, setInfoMsg] = useState('');
-   // We keep isLogin to allow toggling between Sign In / Sign Up texts if desired,
-   // but for Magic Link it's mostly the same flow. We'll default to true.
-   const [isLogin, setIsLogin] = useState(true);
 
    useEffect(() => {
       // Check if this is a Magic Link redirect
@@ -82,28 +60,7 @@ export default function LoginPage() {
       }
    }, []);
 
-   const syncWithBackend = async firebaseUser => {
-      setSyncing(true);
-      try {
-         const token = await firebaseUser.getIdToken();
-         const result = await AuthService.backendLogin(token);
-         setSyncing(false);
-         return result;
-      } catch (error) {
-         setSyncing(false);
-         console.error('Backend Sync Failed:', error);
-         // Show error toast
-         try {
-            toast.error('Login successful, but server connection failed. Please try again.');
-         } catch (toastErr) {
-            console.warn('Toast error:', toastErr);
-         }
-         setError('Login successful, but server connection failed.');
-         throw error;
-      }
-   };
-
-   // Step 2: Complete Sign-in logic
+   // Magic Link Sign-in - Firebase auth only, backend sync handled by AuthContext
    const handleMagicLinkSignIn = async () => {
       setLoading(true);
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
@@ -120,11 +77,9 @@ export default function LoginPage() {
       }
 
       try {
-         const result = await signInWithEmailLink(auth, emailForSignIn, window.location.href);
+         await signInWithEmailLink(auth, emailForSignIn, window.location.href);
          window.localStorage.removeItem('emailForSignIn');
-
-         // Backend Sync
-         await syncWithBackend(result.user);
+         // AuthContext will handle backend sync via onAuthStateChanged
       } catch (err) {
          console.error(err);
          setError('Invalid or expired login link. Please try again.');
@@ -133,7 +88,7 @@ export default function LoginPage() {
       }
    };
 
-   // Step 1: Send Link Logic
+   // Send Magic Link
    const handleSendLink = async e => {
       e.preventDefault();
       setLoading(true);
@@ -163,12 +118,13 @@ export default function LoginPage() {
       }
    };
 
+   // Guest Login - Firebase auth only, backend sync handled by AuthContext
    const handleGuestLogin = async () => {
       setLoading(true);
       setError('');
       try {
-         const result = await signInAnonymously(auth);
-         await syncWithBackend(result.user);
+         await signInAnonymously(auth);
+         // AuthContext will handle backend sync via onAuthStateChanged
       } catch (err) {
          setError('Unable to continue as guest.');
          console.error(err);
@@ -177,13 +133,14 @@ export default function LoginPage() {
       }
    };
 
+   // Google Login - Firebase auth only, backend sync handled by AuthContext
    const handleGoogleLogin = async () => {
       setLoading(true);
       setError('');
       try {
          const provider = new GoogleAuthProvider();
-         const result = await signInWithPopup(auth, provider);
-         await syncWithBackend(result.user);
+         await signInWithPopup(auth, provider);
+         // AuthContext will handle backend sync via onAuthStateChanged
       } catch (err) {
          if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
             console.log('Google login cancelled by user');
@@ -198,8 +155,6 @@ export default function LoginPage() {
 
    return (
       <div className="min-h-screen w-full relative flex items-center justify-center overflow-hidden bg-gray-900">
-         {/* Sync Overlay - Shows during backend sync */}
-         {syncing && <SyncOverlay />}
          {/* Background */}
          <div className="absolute inset-0 z-0">
             {bgImage ? (

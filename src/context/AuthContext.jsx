@@ -7,7 +7,8 @@ import { Loader2 } from 'lucide-react';
 const AuthContext = createContext({
    user: null, // Firebase User (only set after backend sync succeeds)
    userProfile: null, // Backend Profile (Role, Display Name, etc.)
-   loading: true
+   loading: true,
+   logout: async () => {} // Logout function
 });
 
 export function AuthProvider({ children }) {
@@ -17,6 +18,19 @@ export function AuthProvider({ children }) {
 
    // Track last synced user to prevent duplicate backend calls
    const lastSyncedUserId = useRef(null);
+
+   // Logout function
+   const logout = async () => {
+      try {
+         localStorage.removeItem('auth_token');
+         await signOut(auth);
+         setUser(null);
+         setUserProfile(null);
+         lastSyncedUserId.current = null;
+      } catch (error) {
+         console.error('Logout failed:', error);
+      }
+   };
 
    useEffect(() => {
       const unsubscribe = onAuthStateChanged(auth, async firebaseUser => {
@@ -74,6 +88,43 @@ export function AuthProvider({ children }) {
       return () => unsubscribe();
    }, []);
 
+   // Cross-tab logout sync: Listen for localStorage changes from other tabs
+   useEffect(() => {
+      const handleStorageChange = event => {
+         // If auth_token was removed in another tab, logout this tab too
+         if (event.key === 'auth_token' && event.newValue === null && user) {
+            console.log('Auth token removed in another tab, logging out...');
+            signOut(auth);
+            setUser(null);
+            setUserProfile(null);
+            lastSyncedUserId.current = null;
+         }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+   }, [user]);
+
+   // Check auth state when tab becomes visible (handles edge cases)
+   useEffect(() => {
+      const handleVisibilityChange = async () => {
+         if (document.visibilityState === 'visible' && user) {
+            // Check if token still exists
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+               console.log('Auth token missing, logging out...');
+               await signOut(auth);
+               setUser(null);
+               setUserProfile(null);
+               lastSyncedUserId.current = null;
+            }
+         }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+   }, [user]);
+
    if (loading) {
       return (
          <div className="h-screen w-full bg-black flex items-center justify-center">
@@ -82,7 +133,7 @@ export function AuthProvider({ children }) {
       );
    }
 
-   return <AuthContext.Provider value={{ user, userProfile }}>{children}</AuthContext.Provider>;
+   return <AuthContext.Provider value={{ user, userProfile, logout }}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);

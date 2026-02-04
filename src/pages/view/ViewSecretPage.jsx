@@ -282,7 +282,7 @@ export default function ViewSecretPage() {
             {/* Top Branding - Only for anonymous users */}
             {!isLoggedIn && (
                <div className="w-full p-4 md:p-8 flex items-start">
-                  <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="bg-black backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
                      <img src={APP_LOGO_IMAGE} alt="Kieru" className="h-10 w-auto object-contain" />
                   </div>
                </div>
