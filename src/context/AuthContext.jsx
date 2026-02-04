@@ -8,13 +8,31 @@ const AuthContext = createContext({
    user: null, // Firebase User (only set after backend sync succeeds)
    userProfile: null, // Backend Profile (Role, Display Name, etc.)
    loading: true,
+   syncing: false, // Backend sync in progress
    logout: async () => {} // Logout function
 });
+
+// Full-screen sync overlay component
+const SyncOverlay = () => (
+   <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/95 backdrop-blur-sm">
+      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+         <div className="relative">
+            <Loader2 className="w-12 h-12 text-blue-400 animate-spin" />
+            <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-xl" />
+         </div>
+         <div className="text-center">
+            <p className="text-white font-bold text-lg">Syncing your account...</p>
+            <p className="text-white/60 text-sm mt-1">Please wait while we set things up</p>
+         </div>
+      </div>
+   </div>
+);
 
 export function AuthProvider({ children }) {
    const [user, setUser] = useState(null);
    const [userProfile, setUserProfile] = useState(null);
    const [loading, setLoading] = useState(true);
+   const [syncing, setSyncing] = useState(false); // Backend sync state
 
    // Track last synced user to prevent duplicate backend calls
    const lastSyncedUserId = useRef(null);
@@ -43,6 +61,7 @@ export function AuthProvider({ children }) {
                const shouldSync = lastSyncedUserId.current !== firebaseUser.uid;
 
                if (shouldSync) {
+                  setSyncing(true); // Show sync overlay
                   try {
                      const response = await AuthService.backendLogin(token);
                      if (response) {
@@ -62,6 +81,8 @@ export function AuthProvider({ children }) {
                      setUser(null);
                      setUserProfile(null);
                      lastSyncedUserId.current = null;
+                  } finally {
+                     setSyncing(false); // Hide sync overlay
                   }
                } else {
                   // Already synced for this user, just update the user state
@@ -73,6 +94,7 @@ export function AuthProvider({ children }) {
                await signOut(auth);
                setUser(null);
                setUserProfile(null);
+               setSyncing(false);
             }
          } else {
             // User logged out
@@ -125,6 +147,7 @@ export function AuthProvider({ children }) {
       return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
    }, [user]);
 
+   // Initial loading state
    if (loading) {
       return (
          <div className="h-screen w-full bg-black flex items-center justify-center">
@@ -133,7 +156,13 @@ export function AuthProvider({ children }) {
       );
    }
 
-   return <AuthContext.Provider value={{ user, userProfile, logout }}>{children}</AuthContext.Provider>;
+   return (
+      <AuthContext.Provider value={{ user, userProfile, syncing, logout }}>
+         {/* Show sync overlay when syncing with backend */}
+         {syncing && <SyncOverlay />}
+         {children}
+      </AuthContext.Provider>
+   );
 }
 
 export const useAuth = () => useContext(AuthContext);
